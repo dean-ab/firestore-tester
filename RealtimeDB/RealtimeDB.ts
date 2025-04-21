@@ -10,6 +10,7 @@ import {
 } from "firebase-admin/firestore";
 import { RealtimeCollectionReference } from "./RealtimeCollection";
 import { RealtimeDocumentReference } from "./RealtimeDocument";
+import { RealtimeTransaction } from "./RealtimeTransaction";
 
 export class RealtimeDB {
   private firestore: Firestore;
@@ -111,9 +112,11 @@ export class RealtimeDB {
   /**
    * Run a transaction
    */
-  public runTransaction(
-    updateFunction: (transaction: Transaction) => Promise<any>
-  ) {
-    return this.firestore.runTransaction(updateFunction);
+  public runTransaction<T>(
+    updateFunction: (transaction: Transaction) => Promise<T>
+  ): Promise<T> {
+    return this.firestore.runTransaction((t) =>
+      new RealtimeTransaction(t, updateFunction).execute()
+    );
   }
 }

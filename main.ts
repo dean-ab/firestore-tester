@@ -87,15 +87,19 @@ async function runFirestoreQueries() {
   await Promise.all(
     Array.from({ length: 10 }, (_, i) => i + 1).map((i) =>
       realtimeDb.runTransaction(async (transaction) => {
-        console.log(`Running transaction ${i}`);
+        console.log(`[${process.pid}] Running transaction ${i}`);
         const docRef = realtimeDb.collection("users").doc("user1").ref;
         const doc = await transaction.get(docRef);
         const data = doc.data();
         if (data && data.status < i) {
-          console.log(`Updating status to ${i}`);
+          console.log(
+            `[${process.pid}] Updating status from ${data.status} to ${i}`
+          );
           transaction.update(docRef, { status: i });
         } else {
-          console.log(`Status is already ${data?.status}`);
+          console.log(
+            `[${process.pid}] Status is already ${data?.status}, aborting`
+          );
         }
       })
     )
