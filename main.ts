@@ -4,7 +4,8 @@ import * as f from "firebase/firestore";
 import { RateLimiterMemory } from "rate-limiter-flexible";
 import cluster from "cluster";
 import { cpus } from "os";
-import FirestoreDB from "./db";
+// import FirestoreDB from "./db";
+import { RealtimeDB } from "./RealtimeDB/RealtimeDB";
 
 admin.initializeApp({
   credential: admin.credential.cert(serviceAccount as admin.ServiceAccount),
@@ -47,71 +48,60 @@ if (cluster.isPrimary) {
 }
 
 async function runFirestoreQueries() {
-  const firestore = new FirestoreDB();
+  const realtimeDb = new RealtimeDB();
 
-  const user = await firestore.getUser("user1");
-  console.log("Fetched User:", user);
+  const firestore = realtimeDb.getNativeFirestore();
+  const collections = await firestore.listCollections();
+  for (const collection of collections) {
+    console.log("Collection ID:", collection.path);
+  }
+  const user = await realtimeDb.collection("users").doc("user1").get();
+  // console.log("Fetched User:", user);
 
   if (!user) {
-    await firestore.addUser("user1", {
+    await realtimeDb.collection("users").doc("user1").create({
       name: "John Doe",
       age: 30,
       email: "d@e.com",
       status: 0,
     });
+  } else {
+    const data = user.data();
+    console.log("User already exists:", data);
+    await realtimeDb.collection("users").doc("user1").set({ status: 0 });
   }
 
   try {
-    await firestore.updateUser("user1", { age: 31 });
+    await realtimeDb
+      .collection("users")
+      .doc("user1")
+      .update({ age: 31, status: 0 });
   } catch (e) {
     if (isFireStoreError(e)) {
-      console.log("name", e.name);
-      console.log("code", getFirestoreClientErrorCode(e));
-      console.log("message", e.message);
-      console.log("cause", e.cause);
-      console.log("customData", e.customData);
-      console.log("stack", e.stack);
+      console.error(e);
+    } else {
+      throw e;
     }
   }
 
   await Promise.all(
     Array.from({ length: 10 }, (_, i) => i + 1).map((i) =>
-      firestore.updateStatus("user1", i)
+      realtimeDb.runTransaction(async (transaction) => {
+        console.log(`Running transaction ${i}`);
+        const docRef = realtimeDb.collection("users").doc("user1").ref;
+        const doc = await transaction.get(docRef);
+        const data = doc.data();
+        if (data && data.status < i) {
+          console.log(`Updating status to ${i}`);
+          transaction.update(docRef, { status: i });
+        } else {
+          console.log(`Status is already ${data?.status}`);
+        }
+      })
     )
   );
-
-  await firestore.deleteUser("user1");
 }
 
 function isFireStoreError(e: any): e is f.FirestoreError {
   return typeof e === "object" && typeof e.code === "number";
-}
-
-enum GrpcStatus {
-  OK = 0,
-  CANCELLED = 1,
-  UNKNOWN = 2,
-  INVALID_ARGUMENT = 3,
-  DEADLINE_EXCEEDED = 4,
-  NOT_FOUND = 5,
-  ALREADY_EXISTS = 6,
-  PERMISSION_DENIED = 7,
-  RESOURCE_EXHAUSTED = 8,
-  FAILED_PRECONDITION = 9,
-  ABORTED = 10,
-  OUT_OF_RANGE = 11,
-  UNIMPLEMENTED = 12,
-  INTERNAL = 13,
-  UNAVAILABLE = 14,
-  DATA_LOSS = 15,
-  UNAUTHENTICATED = 16,
-}
-
-function getFirestoreClientErrorCode(error: any): any {
-  console.log("error.code", error.message);
-  if (typeof error !== "object" || typeof error.code !== "number") {
-    return "UNKNOWN";
-  }
-  const codeIdx = Object.values(GrpcStatus).indexOf(error.code);
-  return (Object.keys(GrpcStatus)[codeIdx] as any) || "UNKNOWN";
 }
