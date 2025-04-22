@@ -6,7 +6,6 @@ import {
   WriteResult,
   DocumentSnapshot,
   QuerySnapshot,
-  Transaction,
 } from "firebase-admin/firestore";
 import { RealtimeCollectionReference } from "./RealtimeCollection";
 import { RealtimeDocumentReference } from "./RealtimeDocument";
@@ -113,7 +112,7 @@ export class RealtimeDB {
    * Run a transaction
    */
   public runTransaction<T>(
-    updateFunction: (transaction: Transaction) => Promise<T>
+    updateFunction: (transaction: RealtimeTransaction) => Promise<T>
   ): Promise<T> {
     return this.firestore.runTransaction((t) =>
       new RealtimeTransaction(t, updateFunction).execute()

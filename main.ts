@@ -88,7 +88,7 @@ async function runFirestoreQueries() {
     Array.from({ length: 10 }, (_, i) => i + 1).map((i) =>
       realtimeDb.runTransaction(async (transaction) => {
         console.log(`[${process.pid}] Running transaction ${i}`);
-        const docRef = realtimeDb.collection("users").doc("user1").ref;
+        const docRef = realtimeDb.collection("users").doc("user1");
         const doc = await transaction.get(docRef);
         const data = doc.data();
         if (data && data.status < i) {

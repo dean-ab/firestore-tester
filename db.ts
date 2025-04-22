@@ -1,6 +1,6 @@
 import admin, { firestore } from "firebase-admin";
 
-interface User {
+export interface User {
   id: string;
   name: string;
   email: string;

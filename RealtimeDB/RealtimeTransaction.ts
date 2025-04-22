@@ -4,11 +4,11 @@ import { RealtimeDocumentReference } from "./RealtimeDocument";
 export class RealtimeTransaction<T = any> {
   constructor(
     private readonly transaction: Transaction,
-    private readonly updateFn: (t: Transaction) => Promise<T>
+    private readonly updateFn: (t: RealtimeTransaction) => Promise<T>
   ) {}
 
   public execute(): Promise<T> {
-    return this.updateFn(this.transaction);
+    return this.updateFn(this);
   }
 
   public get(docRef: RealtimeDocumentReference) {
